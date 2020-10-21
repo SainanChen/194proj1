@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+  <style>
+  h1 { color: INDIANRED; font-size: 30px; font-family: 'Signika', sans-serif; padding-top: 50px; }
+  h2 {color: INDIANRED;font-family: 'Signika', sans-serif; margin-top: 50px;margin-left: 20px;}
+  h3 { font-family: 'Inder', sans-serif; line-height: 35px; margin-bottom: 10px; color: #666; margin-left: 20px;}
+  p { font-family: 'Inder', sans-serif; line-height: 20px; margin-bottom: 15px; margin-left: 50px; margin-right: 50px; color: #666; }
+  a { color: #ff4411; transition: .5s; -moz-transition: .5s; -webkit-transition: .5s; -o-transition: .5s; }
+  a:hover { color: #a03c21 }
+  .date { float: left }
+  .author { float: right }
+  .entry-content { border-bottom: 3px solid #666; padding: 0 0 15px 0; margin-bottom: 8px; }
+  .meta-info { padding: 5px; overflow: hidden; }
+  .meta-info p { font-family: 'Fenix', serif; font-style: italic; color: #666; font-size: 16px; }
+  figcaption {color: INDIANRED; font-family: 'Signika', sans-serif;text-align: center;}
+  figure { margin-bottom: 20px;text-align: center;}
+  .total {width:1000px; height:400px;}
+  .column_left {float:left; width:500px; height:400px;}
+  .column_right {float:right; width:500px; height:400px;}
+  
+  </style>
+
+  <head>
+     <title>CS 194 Project 1</title>
+     <link rel="stylesheet" type="text/css" href="css/index.css">
+  </head>
+
+  <body style="background:#F8F6CA; margin-left: 50px; margin-right: 50px;">
+    <h1 class="">CS 194 Project 1: Colorizing the Prokudin-Gorskii Photo Collection</h1>
+    <h3> By Sainan Chen</h3>
+    
+    <div style="background-color:rgba(255,255,255,0.6);background-margin:10px;">
+      <div style="margin: 10px 10px 10px 10px;">
+        
+      <p></p>
+      <h2>1 Overview</h2>
+      <img src="emir.jpg" style="width:20%; float:right;margin-left: 30px;" class="center" >
+      <img src="latern.jpg" style="width:20%; float:right;margin-left: 10px;" class="center" >
+      <img src="3-cameras.jpg" style="width:20%; float:right;margin-right: 30px;margin-left: 30px;" class="center" >
+      <p>
+      <a href="https://en.wikipedia.org/wiki/Sergey_Prokudin-Gorsky">Sergei Mikhailovich Prokudin-Gorskii</a>, a Rassian phytogragher, recorded three exposures of many scene onto a glass plate using a red, a green, and a blue filter. The pictures on the right (from left to right) are the camera he used to record exposures, the latern projector he planned to use to show colored pictures, and an example of glass plate negative. This project aim to auto-crop and align three glass plate negatives on the input image and finally produce one colored output image. See more example inputs from <a href="https://www.loc.gov/pictures/search/?sp=1&co=prok&st=grid">Prokudin-Gorskii collection</a>.
+      </p>
+      
+      <h2>2 Algorithms</h2>
+      <p>
+      The sample input iamges are in two types: small jpg files and large jpg files.
+      </p>
+      <h3>2.1 Sum of Square of Differences(SSD)</h3>
+      <p>
+      For small jpg files, The first step I did is dividing the input image vertically into three equal-size subparts coresponding to B(blue), G(green) and R(red) channel. Then I cropped the white and black border in every subimage in order to prevent intervention with alignment. The third step is to align G channel and R channel to B channel respectively by minimizing the <a href="https://en.wikipedia.org/wiki/Mean_squared_error"> Sum of Square of Differences(SSD)</a> between the two matrices. If the two matrices are well aligned, we expect the SSD of the two matrix to be very small. Otherwise, there are still some noticable difference between the pattern of the two matrices. I used a predifined offset range (-15,15) for both x and y direction for alignment, and I aimed to find the offset which will give the minimum SSD. Finally, the three channels are overlapped and concatenated together in third dimension to produce the colored image. Another post cropping will happen to cut unuseful borders created by alignment.
+      </p>
+      <h3>2.2 Image Pyramid</h3>
+      <p>
+      For large jpg files, however, checking all the possible alignments within a relatively large offset range is very time-consuming and inefficient. The first solution I came up with is to shrink the image to a handleable size and enlarge it again after we finish alignment. However, in this way, much information in the image will be lost during the shrinking process, showing by blured view and wide black board as below. Therefore, I decided to use a search procedure called <a href="https://en.wikipedia.org/wiki/Pyramid_(image_processing)">Image Pyramid</a>. It mainly means continuing shrinking the image by a fixed scale (2 in my case) until the size is small enough for the alignment algorithm to run efficiently. Then we can enlarge the image back again, and in every image size level, we can do adjustment on the rough x and y offsets found before over a small range.
+      <div class="total">
+        <div class="column_left">
+            <figure>
+              <img src="result-melons3.jpg" style="margin-top: 20px; width:100%;" class="center" >
+            <figcaption> Shrink image directly</figcaption>
+            </figure>
+        </div>
+        <div class="column_right">
+          <figure>
+          <img src="result-melons.jpg" style="margin-top: 20px;width:100%;" class="center" >
+          <figcaption> Use image pyramid</figcaption>
+          </figure>
+        </div>
+      </div>
+      
+      
+      
+      </p>
+      
+      <h2>3 How can we improve?</h2>
+      <h3>3.1 Sum of Standard Deviation instead of SSD for different light intensity</h3>
+      <p>
+      In the previous part, I mentioned that I used SSD to find offsets for best alignments. However, when I ran the algorithm on the image emir, the output is not ideal (as below). As we can see, the flaw on alignment is obvious, and both R and G matrices are not well aligned. If we look at the input image (at the top), we can see clearly that the light intensity/brightness on 3 plate negatives are noticably different. It will cause the SSD of even perfectly matched 2 matrices to be large. Therefore, I considered sum of standard deviation of columns of difference matrix to eliminate the effects caused by different light intensity. If 2 matrices perfectly align with each other, the light intensity difference will be the same on all of the positions, and the variance should be 0. We can find optimal offsets by finding the minimum sum of standard deviation.<br>
+      <div class="total">
+        <div class="column_left">
+            <figure>
+            <img src="result-emir2.jpg" style="margin-top: 20px; width:100%;" class="center" >
+            <figcaption> Use SSD for input with different light intensities<br>R offsets are (43, 105)<br>G offsets are (25, 50) </figcaption>
+            </figure>
+        </div>
+        <div class="column_right">
+          <figure>
+          <img src="result-emir.jpg" style="margin-top: 20px;width:100%;" class="center" >
+          <figcaption> Use Sum of Std instead<br>R offsets are (45, 67)<br>G offsets are (25, 50) </figcaption>
+          </figure>
+        </div>
+      </div>
+      <p>
+      <br>
+      <br>
+      <br>
+      For most inputs which has similar light intensities for 3 plate negatives, I also applied both SSD and Sum of Std to compare the performance of the two algorithms. As the image below shows, there is no significant difference between the alignments done by these two algorithms.
+      </p>
+      <div class="total">
+        <div class="column_left">
+            <figure>
+            <img src="result-onion_church.jpg" style="margin-top: 20px; width:100%;" class="center" >
+              <figcaption> Use SSD for alignment<br>R offsets are (37, 109)<br>G offsets are (28, 52)</figcaption>
+            </figure>
+        </div>
+        <div class="column_right">
+          <figure>
+          <img src="result-onion_church2.jpg" style="margin-top: 20px;width:100%;" class="center" >
+          <figcaption> Use Sum of Std for alignment<br>R offsets are (37, 109)<br>G offsets are (27, 52)</figcaption>
+          </figure>
+        </div>
+      </div>
+      <br>
+      <br>
+      </p>
+      <h3>3.2 Pre and Post Cropping</h3>
+      <p>
+      I performed cropping twice during the whole process. <br>
+      <br>
+      The first cropping happens before the alignment and after the separation of 3 subparts. The purpose of the first cropping is to get rid of the white and black border originally on the background, otherwise the very high/low intensity of the border pixel will influence the SSD value in later calculation to harm the accuracy. <br>
+      <br>
+      The second cropping happens after the alignment and concatenation and before the final output is produced. There are colorful borders on the output image because of the shifts of R and G matrices. These colors are distracting and dazzling, so we want to get rid of them. <br>
+      <br>
+      I detect and remove these border pixels by deleting all the rows or columns which have the standard deviation very small. If the standard deviation is close to 0, it means the row or column has same value for all entries, usually all 0 or 1. Another way to check irrelevant border is by checking if mean value for the row or column is very small or very large in any color channel. It means the row or column is white or black border in original image, or it's outside the matrix that we want to consider after alignment (should have all entries equal to 0). Below is an example of how I removed the border on the left and the top of the output image after alignment and concatenation.
+      </p>
+      
+      <div class="total">
+        <div class="column_left">
+            <figure>
+            <img src="result-melons2.jpg" style="margin-top: 20px; width:100%;" class="center" >
+              <figcaption> Output without post cropping</figcaption>
+            </figure>
+        </div>
+        <div class="column_right">
+          <figure>
+          <img src="result-melons.jpg" style="margin-top: 20px;width:100%;" class="center" >
+          <figcaption> Output after post cropping</figcaption>
+          </figure>
+        </div>
+      </div>
+      <br>
+      <br>
+      <p>
+      For pre-cropping, however, detecting border using mean or standard deviation is not a general solution. Some image contains sky which has color very close to white, and the threshold is hard to decide. Therefore, I finally choose to cut the black and white border on initial background based on a fix proportion of the image.
+      </p>
+
+      
+      <h2>4 Gallery</h2>
+      <h3>4.1 Small jpg images</h3>
+      <figure>
+      <img src="result-cathedral.jpg" style="margin-top: 20px;width:60%;" class="center" >
+      <figcaption> cathedral<br>R offsets are (3, 12)<br>G offsets are (2, 5)</figcaption>
+      </figure>
+      <figure>
+      <img src="result-monastery.jpg" style="margin-top: 20px;width:60%;" class="center" >
+      <figcaption> monastery<br>R offsets are (2, 3)<br>G offsets are (2, -3)</figcaption>
+      </figure>
+      <figure>
+      <img src="result-tobolsk.jpg" style="margin-top: 20px;width:60%;" class="center" >
+      <figcaption> tobolsk<br>R offsets are (3, 6)<br>G offsets are (3, 3)</figcaption>
+      </figure>
+      <h3>4.2 Large tif images</h3>
+      <figure>
+      <img src="result-castle.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> castle<br>R offsets are (5, 99)<br>G offsets are (4, 35) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-icon.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> icon<br>R offsets are (24, 90)<br>G offsets are (18, 42) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-melons.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> melons<br>R offsets are (15, 179)<br>G offsets are (11, 82) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-lady.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> lady<br>R offsets are (13, 117)<br>G offsets are (10, 56) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-harvesters.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> harvesters<br>R offsets are (14, 124)<br>G offsets are (18, 60) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-emir.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> emir<br>R offsets are (45, 67)<br>G offsets are (25, 50) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-onion_church.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> onion_church<br>R offsets are (37, 109)<br>G offsets are (28, 52) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-self_portrait.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> self_portrait<br>R offsets are (38, 177) <br>G offsets are (30, 79) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-three_generations.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> three_generations<br>R offsets are (12, 112) <br>G offsets are (15, 13) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-train.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> train<br>R offsets are (33, 88)<br>G offsets are (7, 44) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-workshop.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> workshop<br>R offsets are (-11, 106) <br>G offsets are (1, 54)<br><br> </figcaption>
+      </figure>
+      <h3>4.3 Some more large tif images</h3>
+      <figure>
+      <img src="result-ex1.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> R offsets are (2, 42)<br>G offsets are (7, 14) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-ex2.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> R offsets are (20, 39)<br>G offsets are (16, 15) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-ex3.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> R offsets are (36, 78)<br>G offsets are (22, 39) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-ex4.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> R offsets are (5, 121)<br>G offsets are (4, 27) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-ex5.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> R offsets are (16, 42)<br>G offsets are (14, 15) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-ex6.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> R offsets are (12, 101)<br>G offsets are (3, 41) </figcaption>
+      </figure>
+      <figure>
+      <img src="result-ex7.jpg" style="margin-top: 20px;width:80%;" class="center" >
+      <figcaption> R offsets are (-23, 97)<br>G offsets are (-5, 50) </figcaption>
+      </figure>
+      
+      <h2>5 Conclusion</h2>
+      <p>
+      In this project, I refreshed my knowledge with Matlab, which I hadn't used for years. I learned much about basic image manipulations as well as more complicated algorithms like SSD and Image Pyramid in Matlab. Although the concepts are easy to understand, I spent some time struggling with matrix manipulation and figuring out all the dimension agreements. Meanwhile, I had a great time playing with the photos and see their real colors after manipulation, and I am impressed by the sights, figures and buildings that Prokudin-Gorskii captured.
+      <br>
+      <br>
+      <br>
+      </p>
+      </div>
+      </div>
+    </div>
+  </body>
+</html>
